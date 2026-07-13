@@ -18,14 +18,17 @@ import Button from '@/components/Input/Button';
 import Checkbox from '@/components/Input/Checkbox';
 import Input from '@/components/Input/Input';
 import ShokoIcon from '@/components/ShokoIcon';
+import { useOidcConfigQuery } from '@/core/react-query/auth/queries';
 import { useLoginMutation } from '@/core/react-query/auth/mutations';
 import { useRandomImageMetadataQuery } from '@/core/react-query/image/queries';
 import { useServerStatusQuery, useVersionQuery } from '@/core/react-query/init/queries';
-import { useSelector } from '@/core/store';
+import { setDetails } from '@/core/slices/apiSession';
+import { useDispatch, useSelector } from '@/core/store';
 import useNavigateVoid from '@/hooks/useNavigateVoid';
 
 const LoginPage = () => {
   const navigate = useNavigateVoid();
+  const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const apiSession = useSelector(state => state.apiSession);
@@ -33,6 +36,7 @@ const LoginPage = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
+  const [ssoError, setSsoError] = useState('');
   const [rememberUser, setRememberUser] = useState(false);
   const [pollingInterval, setPollingInterval] = useState(500);
   const [{ imageUrl, seriesId, seriesName }, setLoginImage] = useState(() => ({
@@ -42,9 +46,36 @@ const LoginPage = () => {
   }));
 
   const versionQuery = useVersionQuery();
+  const oidcConfigQuery = useOidcConfigQuery();
   const { isPending: isLoginPending, mutate: login } = useLoginMutation();
   const serverStatusQuery = useServerStatusQuery(pollingInterval);
   const imageMetadataQuery = useRandomImageMetadataQuery('Backdrop');
+
+  useEffect(() => {
+    if (!window.location.hash) return;
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const oidcToken = hashParams.get('oidcToken');
+    const oidcUsername = hashParams.get('oidcUsername');
+    const oidcErrorMessage = hashParams.get('oidcError');
+
+    if (oidcToken && oidcUsername) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      dispatch(setDetails({ ...apiSession, apikey: oidcToken, rememberUser: true, username: oidcUsername }));
+      navigate(searchParams.get('redirectTo') ?? '/webui', { replace: true });
+      return;
+    }
+
+    if (oidcErrorMessage) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      setSsoError(oidcErrorMessage);
+    }
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSsoSignIn = () => {
+    const redirectTo = searchParams.get('redirectTo') ?? '/webui';
+    window.location.href = `/api/v3/Auth/Oidc/Challenge?returnUrl=${encodeURIComponent(redirectTo)}`;
+  };
 
   const setRedirect = () => {
     if (seriesId === 0) return;
@@ -124,6 +155,12 @@ const LoginPage = () => {
             </div>
           </div>
         )}
+        {ssoError && (
+          <div className="flex w-full max-w-200 justify-center gap-x-2 rounded-lg border border-panel-border bg-panel-background-transparent p-4 drop-shadow-md">
+            <Icon className="text-panel-text-danger" path={mdiAlertCircleOutline} size={1} />
+            <div className="font-semibold text-panel-text-danger">{ssoError}</div>
+          </div>
+        )}
         <div className="flex flex-col items-center rounded-lg border border-panel-border bg-panel-background-transparent drop-shadow-md">
           <div className="flex w-200 flex-row items-center gap-x-6 p-6">
             <div className="flex w-80 flex-col items-center gap-y-6 py-6">
@@ -188,6 +225,16 @@ const LoginPage = () => {
                   >
                     Login
                   </Button>
+                  {oidcConfigQuery.data?.Enabled && (
+                    <Button
+                      buttonType="secondary"
+                      buttonSize="normal"
+                      className="w-full"
+                      onClick={handleSsoSignIn}
+                    >
+                      {`Sign in with ${oidcConfigQuery.data.DisplayName}`}
+                    </Button>
+                  )}
                 </form>
               )}
               {serverStatusQuery.data?.State === 'Failed' && (

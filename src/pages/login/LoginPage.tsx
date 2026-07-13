@@ -18,7 +18,6 @@ import Button from '@/components/Input/Button';
 import Checkbox from '@/components/Input/Checkbox';
 import Input from '@/components/Input/Input';
 import ShokoIcon from '@/components/ShokoIcon';
-import { useOidcConfigQuery } from '@/core/react-query/auth/queries';
 import { useLoginMutation } from '@/core/react-query/auth/mutations';
 import { useRandomImageMetadataQuery } from '@/core/react-query/image/queries';
 import { useServerStatusQuery, useVersionQuery } from '@/core/react-query/init/queries';
@@ -46,7 +45,6 @@ const LoginPage = () => {
   }));
 
   const versionQuery = useVersionQuery();
-  const oidcConfigQuery = useOidcConfigQuery();
   const { isPending: isLoginPending, mutate: login } = useLoginMutation();
   const serverStatusQuery = useServerStatusQuery(pollingInterval);
   const imageMetadataQuery = useRandomImageMetadataQuery('Backdrop');
@@ -225,14 +223,14 @@ const LoginPage = () => {
                   >
                     Login
                   </Button>
-                  {oidcConfigQuery.data?.Enabled && (
+                  {serverStatusQuery.data?.OidcEnabled && (
                     <Button
                       buttonType="secondary"
                       buttonSize="normal"
                       className="w-full"
                       onClick={handleSsoSignIn}
                     >
-                      {`Sign in with ${oidcConfigQuery.data.DisplayName}`}
+                      Sign in with SSO
                     </Button>
                   )}
                 </form>

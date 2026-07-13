@@ -7,6 +7,7 @@ export type ServerStatusType = {
   StartupMessage: string;
   State: 'Starting' | 'Started' | 'Failed' | 'Waiting';
   Uptime: string;
+  OidcEnabled: boolean;
   DatabaseBlocked: {
     Progress: number;
     Blocked: boolean;

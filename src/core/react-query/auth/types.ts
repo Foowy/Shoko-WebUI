@@ -4,8 +4,3 @@ export type LoginRequestType = {
   device: string;
   rememberUser: boolean;
 };
-
-export type OidcConfigType = {
-  Enabled: boolean;
-  DisplayName: string;
-};
